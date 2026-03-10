@@ -19,6 +19,9 @@ for (f in fileList){
   #   print(f)
 }
 
+#Remove the brief description column, it is unnecessary
+listOfColumns = setdiff(listOfColumns,c("brief_description"))
+
 #Columns all of them have in common
 #print(listOfColumns)
 
