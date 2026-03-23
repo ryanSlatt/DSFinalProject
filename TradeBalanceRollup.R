@@ -106,7 +106,7 @@ balanceData = balanceData %>% select(Year, Country, HTS8, "Exports" = "Value.x",
 balanceData$Exports = balanceData$Exports %>% replace_na(0)
 balanceData$Imports = balanceData$Imports %>% replace_na(0)
 balanceData = balanceData %>% mutate(tradeBalance = Exports-Imports)
-balanceData = balanceData %>% select(Year, Country, HTS8,tradeBalance)
+balanceData = balanceData %>% select(Year, Country, HTS8,tradeBalance,Exports,Imports)
 
 write.csv(balanceData,"tradeBalance.csv")
 
