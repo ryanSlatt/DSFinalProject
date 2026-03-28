@@ -1,6 +1,7 @@
 library(readxl)
 library(tidyverse)
 library(fixest)
+library(modelsummary)
 
 setwd("~/GitHub/DSFinalProject")
 
@@ -31,11 +32,14 @@ tradeData = read_csv("tradeBalance.csv",col_select = 2:7)
 #https://www.usitc.gov/applications/dataweb/td-codes.pdf
 #So we will filter to just the categories with an ad valorem component (excluding
 #the placeholders in category 9)
+
 tariffData = tariffData %>% filter(mfn_rate_type_code %in% c(0,4,5,6,7,9))
+#tariffData = tariffData %>% filter(mfn_rate_type_code == 7)
 tariffData = tariffData %>% filter(mfn_ad_val_rate < 100)
+
 # This excludes some large values like 114.0000   9999.9900  10000.0000  10000.0000 100000.0000
 #But keeps some other still fairly large values like 1.0000      1.3100 1.3180      1.3570      1.3950      1.4340      1.6300      1.6380      1.6860      1.7340  1.7830      2.0000      3.5000
-
+#This threshold may need some adjustment
 
 
 #Selecting a few variables from tariff data (unlikely to use them all)
@@ -45,27 +49,32 @@ tariffData = tariffData %>% select(year,hts8,mfn_ad_val_rate)
 tariffData = tariffData %>% group_by(year,hts8) %>% summarise(adValRate = mean(mfn_ad_val_rate))
 
 data = full_join(tradeData,tariffData, join_by("Year"=="year","HTS8"=="hts8"))
-data$adValRate = data$adValRate %>% replace_na(0)
+data$adValRate = data$adValRate %>% replace_na(0) #Omitting this step results in a positive coef in the regression. But it seems to be a reasonable approach to me - anything that doesn't match up clearly has a 0% tariff rate.
 
 
 #Aggregating to country level (adding across HTS)
 countryData = data %>% group_by(Year,Country) %>% summarise(tradeBalance = sum(tradeBalance,na.rm=TRUE),
                                                             Exports= sum(Exports),
                                                             Imports = sum(Imports),
-                                                            adValRate = sum(Imports*adValRate)/sum(Imports))
+                                                            adValRate = sum(Imports*adValRate,na.rm=TRUE)/sum(Imports,na.rm=TRUE))
+
+#Aggregating to global level (adding across country)
+globalData = countryData %>% group_by(Year) %>% summarise(tradeBalance = sum(tradeBalance,na.rm=TRUE),
+                                                            Exports= sum(Exports,na.rm = TRUE),
+                                                            Imports = sum(Imports, na.rm = TRUE),
+                                                            adValRate = sum(Imports*adValRate,na.rm=TRUE)/sum(Imports,na.rm=TRUE))
 
 #Unscaled regressions
-feols(data, tradeBalance ~ adValRate | Year + Country + HTS8)
-feols(countryData, tradeBalance ~ adValRate | Year + Country)
-
+unscaledProductLevelFE = feols(data, tradeBalance ~ adValRate | Year + Country + HTS8)
+unscaledCountryLevelFE = feols(countryData, tradeBalance ~ adValRate | Year + Country)
+globalLevelModel = feols(globalData, tradeBalance~adValRate)
 
 #Scale each over time and repeat regressions
 data = data %>% group_by(Country,HTS8) %>% mutate(tradeBalance = scale(tradeBalance))
-feols(data, tradeBalance ~ adValRate | Year + Country + HTS8)
+scaledProductLevelFE = feols(data, tradeBalance ~ adValRate | Year + Country + HTS8)
 
 countryData = countryData %>% group_by(Country) %>% mutate(tradeBalance = scale(tradeBalance))
-feols(countryData, tradeBalance ~ adValRate | Year + Country)
-
+scaledCountryLevelFE = feols(countryData, tradeBalance ~ adValRate | Year + Country)
 
 rm(tariffData)
 rm(tradeData)
@@ -80,19 +89,59 @@ rm(tradeData)
 #test = data %>% filter(adValRate > 1 & Imports>0)
 #unique(test$adValRate)
 
+
+
 #Lag regressions
 #Single year lag
-feols(data, tradeBalance ~ lag(adValRate) | Year + Country + HTS8)
-feols(countryData, tradeBalance ~ lag(adValRate) | Year + Country)
+productLevelLag1 = feols(data, tradeBalance ~  lag(adValRate) | Year + Country + HTS8)
+countryLevelLag1 = feols(countryData, tradeBalance ~ lag(adValRate) | Year + Country)
 
-#Using the ccf function to see if there is evidence for a lag and how long
-# dataDropNA = data %>% filter(!is.na(tradeBalance))
-# 
-# x = ts(dataDropNA$adValRate)
-# y = ts(drop(dataDropNA$tradeBalance))
-# 
-# ccf(x,y)
-# 
-# 
-# 
-# feols(data, tradeBalance ~ adValRate | Year + Country + HTS8)
+#Two year lag
+productLevelLag2 = feols(data, tradeBalance ~ lag(adValRate,2) | Year + Country + HTS8)
+countryLevelLag2 = feols(countryData, tradeBalance ~ lag(adValRate,2) | Year + Country)
+
+#Three year lag
+productLevelLag3 = feols(data, tradeBalance ~ lag(adValRate,3) | Year + Country + HTS8)
+countryLevelLag3 = feols(countryData, tradeBalance ~ lag(adValRate,3) | Year + Country)
+
+#Creating tables for the models
+productLevelRegressions = modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), title = "Product Level Regressions", list("Unscaled" = unscaledProductLevelFE,"Scaled" = scaledProductLevelFE,"One Year Lag" = productLevelLag1,"Two Year Lag" = productLevelLag2,"Three Year Lag" = productLevelLag3))
+countryLevelRegressions = modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), title = "Country Level Regressions", list("Unscaled" = unscaledCountryLevelFE,"Scaled" = scaledCountryLevelFE,"One Year Lag" = countryLevelLag1,"Two Year Lag" = countryLevelLag2,"Three Year Lag" = countryLevelLag3))
+
+#Display the tables
+productLevelRegressions
+countryLevelRegressions
+
+countryData = countryData %>% filter(!is.na(Country) & !is.na(Year))
+
+
+#Initializing a table to store the results in
+columns = c(-15:15)
+lagsTable = data.frame(matrix(nrow=0,ncol=length(columns)))
+colnames(lagsTable) = columns
+
+#Running ccf for every country and extracting "significant" lags
+for (c in unique(countryData$Country)){
+  tempData = countryData %>% filter(Country == c)
+  x = ts(tempData$adValRate)
+  y = ts(drop(tempData$tradeBalance))
+  ccfTest = ccf(x,y,na.action = na.pass,plot = FALSE)
+  results = ccfTest$acf
+  lagLabels = ccfTest$lag
+  signficantLags = (results < -1.96/sqrt(length(x)) | results > 1.96/sqrt(length(x)))
+  tempLagTable = rbind(signficantLags)
+  tempLagTable = data.frame(tempLagTable)
+  colnames(tempLagTable) = lagLabels
+  lagsTable = bind_rows(lagsTable,tempLagTable)
+}
+
+#Summing across time period to get the number of significant lags in each time period
+summedLags = colSums(lagsTable,na.rm=TRUE)
+summedLags = data.frame(summedLags)
+barplot(summedLags$summedLags,names.arg = columns,ylab = "Number of Countries with a \"Significant\" Lag", xlab = "Time period", main ="Number of \"Significant\" Lags per time period")
+
+
+
+#Using global level to try to determine a good lag
+#test = ccf(globalData$adValRate,globalData$tradeBalance,na.action = na.pass)
+#test$acf
