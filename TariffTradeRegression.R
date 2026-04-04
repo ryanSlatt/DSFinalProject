@@ -92,26 +92,18 @@ rm(tradeData)
 
 
 #Lag regressions
-#Single year lag
-productLevelLag1 = feols(data, tradeBalance ~  lag(adValRate) | Year + Country + HTS8)
-countryLevelLag1 = feols(countryData, tradeBalance ~ lag(adValRate) | Year + Country)
+countryLevelLags =  feols(countryData, tradeBalance ~ l(adValRate,0:3) | Year + Country, panel.id = ~Country+Year)
+countryLevelLags
 
-#Two year lag
-productLevelLag2 = feols(data, tradeBalance ~ lag(adValRate,2) | Year + Country + HTS8)
-countryLevelLag2 = feols(countryData, tradeBalance ~ lag(adValRate,2) | Year + Country)
 
-#Three year lag
-productLevelLag3 = feols(data, tradeBalance ~ lag(adValRate,3) | Year + Country + HTS8)
-countryLevelLag3 = feols(countryData, tradeBalance ~ lag(adValRate,3) | Year + Country)
+data = data %>% group_by(Country,HTS8) %>% mutate(seriesID = cur_group_id())
+productLevelLags =  feols(data, tradeBalance ~ l(adValRate,0:3) | Year + Country + HTS8, panel.id = ~seriesID+Year)
+productLevelLags
 
 #Creating tables for the models
-productLevelRegressions = modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), title = "Product Level Regressions", list("Unscaled" = unscaledProductLevelFE,"Scaled" = scaledProductLevelFE,"One Year Lag" = productLevelLag1,"Two Year Lag" = productLevelLag2,"Three Year Lag" = productLevelLag3))
-countryLevelRegressions = modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), title = "Country Level Regressions", list("Unscaled" = unscaledCountryLevelFE,"Scaled" = scaledCountryLevelFE,"One Year Lag" = countryLevelLag1,"Two Year Lag" = countryLevelLag2,"Three Year Lag" = countryLevelLag3))
+modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLags, "Country-Level   " =countryLevelLags),output = "regressionTable.png")
 
-#Display the tables
-productLevelRegressions
-countryLevelRegressions
-
+#Removing NA country observations. The regressions drop them automatically but ccf does not
 countryData = countryData %>% filter(!is.na(Country) & !is.na(Year))
 
 
@@ -139,9 +131,3 @@ for (c in unique(countryData$Country)){
 summedLags = colSums(lagsTable,na.rm=TRUE)
 summedLags = data.frame(summedLags)
 barplot(summedLags$summedLags,names.arg = columns,ylab = "Number of Countries with a \"Significant\" Lag", xlab = "Time period", main ="Number of \"Significant\" Lags per time period")
-
-
-
-#Using global level to try to determine a good lag
-#test = ccf(globalData$adValRate,globalData$tradeBalance,na.action = na.pass)
-#test$acf
