@@ -128,13 +128,13 @@ coef_map = c(
 )
 
 #modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLags, "Country-Level   " =countryLevelLags))
-modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLags, "Country-Level   " =countryLevelLags),coef_map = coef_map,output = "regressionTable.png")
+modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLags, "Country-Level   " =countryLevelLags),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8',output = "regressionTable.png")
 
 #Exports Table
-modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsExports, "Country-Level   " =countryLevelLagsExports),coef_map = coef_map,output = "exportsRegressionTable.png")
+modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsExports, "Country-Level   " =countryLevelLagsExports),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8',output = "exportsRegressionTable.png")
 
 #Imports Table
-modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsImports, "Country-Level   " =countryLevelLagsImports),coef_map = coef_map,output = "importsRegressionTable.png")
+modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsImports, "Country-Level   " =countryLevelLagsImports),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8',output = "importsRegressionTable.png")
 
 
 #Removing NA country observations. The regressions drop them automatically but ccf does not
@@ -164,4 +164,4 @@ for (c in unique(countryData$Country)){
 #Summing across time period to get the number of significant lags in each time period
 summedLags = colSums(lagsTable,na.rm=TRUE)
 summedLags = data.frame(summedLags)
-barplot(summedLags$summedLags,names.arg = columns,ylab = "Number of Significant Lags", xlab = "Lag", main = "Bar Plot of Significant Lags Across Country")
+barplot(summedLags$summedLags,names.arg = columns,ylab = "Number of Countries", xlab = "Lag")
