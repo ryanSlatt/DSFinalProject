@@ -61,10 +61,13 @@ data$adValRate = data$adValRate %>% replace_na(0) #Omitting this step results in
 data = data %>% group_by(Country,HTS8) %>% mutate(seriesID = cur_group_id())
 
 #Aggregating to country level (adding across HTS)
-countryData = data %>% group_by(Year,Country) %>% summarise(tradeBalance = sum(tradeBalance,na.rm=TRUE),
+#NOTE - filtering out negative imports because they mess with the weighted average
+#It is not entirely clear what a negative import is. Documentation could not be found
+#Presumably not the same as exports, or they would show up in the exports data
+countryData = data %>% filter(Imports>=0) %>% group_by(Year,Country) %>% summarise(tradeBalance = sum(tradeBalance,na.rm=TRUE),
+                                                            adValRate = sum(Imports*adValRate,na.rm=TRUE)/sum(Imports,na.rm=TRUE),
                                                             Exports= sum(Exports),
-                                                            Imports = sum(Imports),
-                                                            adValRate = sum(Imports*adValRate,na.rm=TRUE)/sum(Imports,na.rm=TRUE))
+                                                            Imports = sum(Imports))
 
 #Aggregating to global level (adding across country)
 globalData = countryData %>% group_by(Year) %>% summarise(tradeBalance = sum(tradeBalance,na.rm=TRUE),
@@ -128,13 +131,13 @@ coef_map = c(
 )
 
 #modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLags, "Country-Level   " =countryLevelLags))
-modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLags, "Country-Level   " =countryLevelLags),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8',output = "regressionTable.png")
+modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLags, "Country-Level   " =countryLevelLags),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8|AIC|BIC|RMSE',output = "regressionTable.png")
 
 #Exports Table
-modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsExports, "Country-Level   " =countryLevelLagsExports),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8',output = "exportsRegressionTable.png")
+modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsExports, "Country-Level   " =countryLevelLagsExports),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8|AIC|BIC|RMSE',output = "exportsRegressionTable.png")
 
 #Imports Table
-modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsImports, "Country-Level   " =countryLevelLagsImports),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8',output = "importsRegressionTable.png")
+modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsImports, "Country-Level   " =countryLevelLagsImports),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8|AIC|BIC|RMSE',output = "importsRegressionTable.png")
 
 
 #Removing NA country observations. The regressions drop them automatically but ccf does not
