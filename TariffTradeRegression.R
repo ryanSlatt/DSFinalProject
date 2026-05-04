@@ -140,7 +140,7 @@ modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" 
 modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsImports, "Country-Level   " =countryLevelLagsImports),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8|AIC|BIC|RMSE',output = "importsRegressionTable.png")
 
 
-#Combined Table
+#Combined Table 
 panels <- list(
   "HTS8-Level" = list(
     "Balance of Trade" = productLevelLags,
@@ -154,13 +154,15 @@ panels <- list(
   )
 )
 
+#WARNING - when saved via the "output" argument, the top labels, HTS8-Level and Country-Level, are cut off
+#Recommend using RStudio's viewer and opening in a browser window to be able to view the full table
 modelsummary(
   panels,
   shape = "cbind",
   coef_map = coef_map,
   gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8|AIC|BIC|RMSE',
   stars = c("*" = .05, "**" = .01, "***" = 0.001),
-  output = "combinedRegressionTable.png")
+  output = "combinedRegressionTable.jpg")
 
 
 
