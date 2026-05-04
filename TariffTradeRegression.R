@@ -140,6 +140,32 @@ modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" 
 modelsummary(stars = c("*" = .05, "**" = .01, "***" = 0.001), list("HTS8-Level" = productLevelLagsImports, "Country-Level   " =countryLevelLagsImports),coef_map = coef_map,gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8|AIC|BIC|RMSE',output = "importsRegressionTable.png")
 
 
+#Combined Table
+panels <- list(
+  "HTS8-Level" = list(
+    "Balance of Trade" = productLevelLags,
+    "Exports" = productLevelLagsExports,
+    "Imports" = productLevelLagsImports
+  ),
+  "Country-Level" = list(
+    "Balance of Trade" = countryLevelLags,
+    "Exports" = countryLevelLagsExports,
+    "Imports" = countryLevelLagsImports
+  )
+)
+
+modelsummary(
+  panels,
+  shape = "cbind",
+  coef_map = coef_map,
+  gof_omit = 'R2 Within|R2 Within Adj.|FE: Year|FE: Country|FE: HTS8|AIC|BIC|RMSE',
+  stars = c("*" = .05, "**" = .01, "***" = 0.001),
+  output = "combinedRegressionTable.png")
+
+
+
+
+
 #Removing NA country observations. The regressions drop them automatically but ccf does not
 countryData = countryData %>% filter(!is.na(Country) & !is.na(Year))
 
